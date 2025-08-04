@@ -3,10 +3,29 @@ package Control;
 
 import Modelo.Estado;
 import Modelo.Transicion;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.RenderingHints;
+import java.awt.geom.QuadCurve2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 
 public class ControlPrincipal {
     private ControlEstado cEstado;
@@ -306,4 +325,278 @@ public class ControlPrincipal {
     public String generarTablaTransiciones() {
         return generarTablaTransicionesMealy();
     }
+    
+    // NUEVO: Método para generar visualización del grafo (agregar a ControlPrincipal.java)
+public void mostrarGrafoMaquinaMealy() {
+    ArrayList<Estado> estados = cEstado.getEstados();
+    ArrayList<Transicion> transiciones = cTransicion.getTransiciones();
+    
+    if (estados.isEmpty()) {
+        this.fachada.getvPrincipal().mostrarMensajeError("No hay estados definidos para mostrar el grafo.");
+        return;
+    }
+    
+    // Crear ventana para mostrar el grafo
+    JFrame ventanaGrafo = new JFrame("Grafo de la Máquina de Mealy");
+    ventanaGrafo.setSize(800, 600);
+    ventanaGrafo.setLocationRelativeTo(this.fachada.getvPrincipal());
+    
+    // Panel personalizado para dibujar el grafo
+    JPanel panelGrafo = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            dibujarGrafo(g2d, getWidth(), getHeight());
+        }
+    };
+    
+    panelGrafo.setBackground(Color.WHITE);
+    
+    JScrollPane scroll = new JScrollPane(panelGrafo);
+    ventanaGrafo.add(scroll);
+    
+    // Botón para cerrar
+    JPanel panelBotones = new JPanel();
+    JButton btnCerrar = new JButton("Cerrar");
+    btnCerrar.addActionListener(e -> ventanaGrafo.dispose());
+    panelBotones.add(btnCerrar);
+    
+    // Botón para exportar (opcional)
+    JButton btnExportar = new JButton("Exportar Imagen");
+    btnExportar.addActionListener(e -> exportarGrafoComoImagen(panelGrafo));
+    panelBotones.add(btnExportar);
+    
+    ventanaGrafo.add(panelBotones, BorderLayout.SOUTH);
+    ventanaGrafo.setVisible(true);
+}
+
+private void dibujarGrafo(Graphics2D g2d, int ancho, int alto) {
+    ArrayList<Estado> estados = cEstado.getEstados();
+    ArrayList<Transicion> transiciones = cTransicion.getTransiciones();
+    
+    if (estados.isEmpty()) return;
+    
+    // Configurar colores y fuentes
+    Font fuenteEstado = new Font("Arial", Font.BOLD, 14);
+    Font fuenteTransicion = new Font("Arial", Font.PLAIN, 12);
+    Color colorEstadoNormal = new Color(173, 216, 230); // Azul claro
+    Color colorEstadoInicial = new Color(144, 238, 144); // Verde claro
+    Color colorEstadoFinal = new Color(255, 182, 193); // Rosa claro
+    Color colorBorde = Color.BLACK;
+    Color colorTexto = Color.BLACK;
+    Color colorFlecha = Color.BLUE;
+    
+    // Calcular posiciones de los estados en círculo
+    Map<Estado, Point> posiciones = new HashMap<>();
+    int centroX = ancho / 2;
+    int centroY = alto / 2;
+    int radio = Math.min(ancho, alto) / 3;
+    
+    for (int i = 0; i < estados.size(); i++) {
+        double angulo = 2 * Math.PI * i / estados.size();
+        int x = centroX + (int) (radio * Math.cos(angulo));
+        int y = centroY + (int) (radio * Math.sin(angulo));
+        posiciones.put(estados.get(i), new Point(x, y));
+    }
+    
+    // Dibujar transiciones (arcos)
+    g2d.setColor(colorFlecha);
+    for (Transicion t : transiciones) {
+        Point desde = posiciones.get(t.getEstadoDesde());
+        Point hasta = posiciones.get(t.getEstadoHasta());
+        
+        if (desde != null && hasta != null) {
+            dibujarTransicion(g2d, desde, hasta, t.getSimbolo(), t.getOutput(), 
+                            t.getEstadoDesde().equals(t.getEstadoHasta()), fuenteTransicion);
+        }
+    }
+    
+    // Dibujar estados (círculos)
+    int radioEstado = 40;
+    for (Estado estado : estados) {
+        Point pos = posiciones.get(estado);
+        if (pos == null) continue;
+        
+        // Determinar color del estado
+        Color colorFondo = colorEstadoNormal;
+        if (estado.isEstadoInicial() && estado.isEstadoFinal()) {
+            colorFondo = new Color(255, 255, 0); // Amarillo para inicial y final
+        } else if (estado.isEstadoInicial()) {
+            colorFondo = colorEstadoInicial;
+        } else if (estado.isEstadoFinal()) {
+            colorFondo = colorEstadoFinal;
+        }
+        
+        // Dibujar círculo del estado
+        g2d.setColor(colorFondo);
+        g2d.fillOval(pos.x - radioEstado, pos.y - radioEstado, radioEstado * 2, radioEstado * 2);
+        
+        g2d.setColor(colorBorde);
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawOval(pos.x - radioEstado, pos.y - radioEstado, radioEstado * 2, radioEstado * 2);
+        
+        // Círculo doble para estados finales
+        if (estado.isEstadoFinal()) {
+            g2d.drawOval(pos.x - radioEstado + 5, pos.y - radioEstado + 5, 
+                        (radioEstado - 5) * 2, (radioEstado - 5) * 2);
+        }
+        
+        // Flecha de entrada para estado inicial
+        if (estado.isEstadoInicial()) {
+            g2d.setColor(colorFlecha);
+            int[] xPoints = {pos.x - radioEstado - 30, pos.x - radioEstado - 10, pos.x - radioEstado - 10};
+            int[] yPoints = {pos.y, pos.y - 8, pos.y + 8};
+            g2d.fillPolygon(xPoints, yPoints, 3);
+            g2d.drawLine(pos.x - radioEstado - 50, pos.y, pos.x - radioEstado - 30, pos.y);
+        }
+        
+        // Texto del estado
+        g2d.setColor(colorTexto);
+        g2d.setFont(fuenteEstado);
+        FontMetrics fm = g2d.getFontMetrics();
+        String nombre = estado.getNombre();
+        int anchoTexto = fm.stringWidth(nombre);
+        int altoTexto = fm.getHeight();
+        g2d.drawString(nombre, pos.x - anchoTexto / 2, pos.y + altoTexto / 4);
+    }
+    
+    // Dibujar leyenda
+    dibujarLeyenda(g2d, ancho, alto);
+}
+
+private void dibujarTransicion(Graphics2D g2d, Point desde, Point hasta, String simbolo, 
+                              String output, boolean esLoop, Font fuente) {
+    g2d.setFont(fuente);
+    g2d.setStroke(new BasicStroke(1.5f));
+    
+    if (esLoop) {
+        // Dibujar loop (círculo pequeño encima del estado)
+        int radioLoop = 25;
+        int centroLoopX = desde.x;
+        int centroLoopY = desde.y - 65;
+        
+        g2d.drawOval(centroLoopX - radioLoop, centroLoopY - radioLoop, radioLoop * 2, radioLoop * 2);
+        
+        // Flecha del loop
+        double anguloFlecha = Math.PI / 4;
+        int xFlecha = centroLoopX + (int) (radioLoop * Math.cos(anguloFlecha));
+        int yFlecha = centroLoopY + (int) (radioLoop * Math.sin(anguloFlecha));
+        
+        dibujarPuntaFlecha(g2d, xFlecha, yFlecha, anguloFlecha + Math.PI / 2);
+        
+        // Etiqueta del loop
+        String etiqueta = simbolo + "/" + output;
+        FontMetrics fm = g2d.getFontMetrics();
+        int anchoEtiqueta = fm.stringWidth(etiqueta);
+        g2d.drawString(etiqueta, centroLoopX - anchoEtiqueta / 2, centroLoopY - radioLoop - 10);
+        
+    } else {
+        // Calcular puntos en el borde de los círculos
+        int radioEstado = 40;
+        double angulo = Math.atan2(hasta.y - desde.y, hasta.x - desde.x);
+        
+        int x1 = desde.x + (int) (radioEstado * Math.cos(angulo));
+        int y1 = desde.y + (int) (radioEstado * Math.sin(angulo));
+        int x2 = hasta.x - (int) (radioEstado * Math.cos(angulo));
+        int y2 = hasta.y - (int) (radioEstado * Math.sin(angulo));
+        
+        // Dibujar línea curva para evitar superposición
+        int controlX = (x1 + x2) / 2 + (int) (30 * Math.cos(angulo + Math.PI / 2));
+        int controlY = (y1 + y2) / 2 + (int) (30 * Math.sin(angulo + Math.PI / 2));
+        
+        QuadCurve2D.Double curva = new QuadCurve2D.Double(x1, y1, controlX, controlY, x2, y2);
+        g2d.draw(curva);
+        
+        // Punta de flecha
+        dibujarPuntaFlecha(g2d, x2, y2, angulo);
+        
+        // Etiqueta de la transición
+        String etiqueta = simbolo + "/" + output;
+        FontMetrics fm = g2d.getFontMetrics();
+        int anchoEtiqueta = fm.stringWidth(etiqueta);
+        
+        // Posicionar etiqueta en el punto de control de la curva
+        g2d.setColor(Color.WHITE);
+        g2d.fillRect(controlX - anchoEtiqueta / 2 - 2, controlY - fm.getHeight() / 2 - 2,
+                    anchoEtiqueta + 4, fm.getHeight() + 4);
+        
+        g2d.setColor(Color.BLACK);
+        g2d.drawString(etiqueta, controlX - anchoEtiqueta / 2, controlY + fm.getHeight() / 4);
+    }
+}
+
+private void dibujarPuntaFlecha(Graphics2D g2d, int x, int y, double angulo) {
+    int longitudFlecha = 12;
+    double anguloFlecha = Math.PI / 6;
+    
+    int x1 = x - (int) (longitudFlecha * Math.cos(angulo - anguloFlecha));
+    int y1 = y - (int) (longitudFlecha * Math.sin(angulo - anguloFlecha));
+    int x2 = x - (int) (longitudFlecha * Math.cos(angulo + anguloFlecha));
+    int y2 = y - (int) (longitudFlecha * Math.sin(angulo + anguloFlecha));
+    
+    g2d.drawLine(x, y, x1, y1);
+    g2d.drawLine(x, y, x2, y2);
+}
+
+private void dibujarLeyenda(Graphics2D g2d, int ancho, int alto) {
+    g2d.setColor(Color.BLACK);
+    g2d.setFont(new Font("Arial", Font.PLAIN, 11));
+    
+    int x = 10;
+    int y = alto - 100;
+    
+    g2d.drawString("LEYENDA:", x, y);
+    y += 15;
+    
+    // Estado normal
+    g2d.setColor(new Color(173, 216, 230));
+    g2d.fillOval(x, y, 20, 20);
+    g2d.setColor(Color.BLACK);
+    g2d.drawOval(x, y, 20, 20);
+    g2d.drawString("Estado normal", x + 25, y + 14);
+    y += 25;
+    
+    // Estado inicial
+    g2d.setColor(new Color(144, 238, 144));
+    g2d.fillOval(x, y, 20, 20);
+    g2d.setColor(Color.BLACK);
+    g2d.drawOval(x, y, 20, 20);
+    g2d.drawString("Estado inicial", x + 25, y + 14);
+    y += 25;
+    
+    // Estado final
+    g2d.setColor(new Color(255, 182, 193));
+    g2d.fillOval(x, y, 20, 20);
+    g2d.setColor(Color.BLACK);
+    g2d.drawOval(x, y, 20, 20);
+    g2d.drawOval(x + 3, y + 3, 14, 14);
+    g2d.drawString("Estado final", x + 25, y + 14);
+}
+
+private void exportarGrafoComoImagen(JPanel panel) {
+    try {
+        BufferedImage imagen = new BufferedImage(panel.getWidth(), panel.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = imagen.createGraphics();
+        panel.printAll(g2d);
+        g2d.dispose();
+        
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PNG Images", "png"));
+        
+        if (fileChooser.showSaveDialog(this.fachada.getvPrincipal()) == JFileChooser.APPROVE_OPTION) {
+            File archivo = fileChooser.getSelectedFile();
+            if (!archivo.getName().toLowerCase().endsWith(".png")) {
+                archivo = new File(archivo.getAbsolutePath() + ".png");
+            }
+            
+            javax.imageio.ImageIO.write(imagen, "png", archivo);
+            this.fachada.getvPrincipal().mostrarMensaje("Grafo exportado exitosamente como: " + archivo.getName());
+        }
+    } catch (Exception e) {
+        this.fachada.getvPrincipal().mostrarMensajeError("Error al exportar el grafo: " + e.getMessage());
+    }
+}
 }

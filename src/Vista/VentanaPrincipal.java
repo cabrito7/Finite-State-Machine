@@ -9,6 +9,7 @@ import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
+
 /**
  *
  * @author carlosmamut1
@@ -18,6 +19,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(VentanaPrincipal.class.getName());
     
     // Components for States Management
+    private JMenuItem itemMostrarGrafo; // NUEVO: Mostrar grafo
     private JPanel panelEstados;
     private JTextField txtNombreEstado;
     private JCheckBox chkEstadoInicial;
@@ -109,6 +111,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         itemAbrir = new JMenuItem("Abrir");
         itemGuardar = new JMenuItem("Guardar");
         itemSalir = new JMenuItem("Salir");
+        itemMostrarGrafo = new JMenuItem("Mostrar Grafo");
         
         menuArchivo.add(itemNuevo);
         menuArchivo.add(itemAbrir);
@@ -126,6 +129,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         menuAutomata.add(itemTablaTransiciones);
         menuAutomata.addSeparator();
         menuAutomata.add(itemLimpiarTodo);
+        menuAutomata.add(itemMostrarGrafo);
         
         // Help Menu
         menuAyuda = new JMenu("Ayuda");
@@ -480,6 +484,9 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     public void mostrarMensaje(String msj) {
         JOptionPane.showMessageDialog(this, msj, "Información", JOptionPane.INFORMATION_MESSAGE);
     }
+    public JMenuItem getItemMostrarGrafo() {
+    return itemMostrarGrafo;
+}
 
     /**
      * This method is called from within the constructor to initialize the form.

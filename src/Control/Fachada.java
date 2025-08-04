@@ -46,11 +46,20 @@ public class Fachada implements ActionListener {
         this.vPrincipal.getItemTablaTransiciones().addActionListener(this);
         this.vPrincipal.getItemLimpiarTodo().addActionListener(this);
         this.vPrincipal.getItemAcercaDe().addActionListener(this);
+        this.vPrincipal.getItemMostrarGrafo().addActionListener(this);
     }
 
     public VentanaPrincipal getvPrincipal() {
         return vPrincipal;
     }
+    private void manejarMostrarGrafo() {
+    if (cPrincipal.getcEstado().getCantidadEstados() == 0) {
+        vPrincipal.mostrarMensajeError("No hay estados definidos para mostrar el grafo.");
+        return;
+    }
+    
+    cPrincipal.mostrarGrafoMaquinaMealy();
+}
 
     @Override
     public void actionPerformed(ActionEvent ae) {
@@ -108,6 +117,10 @@ public class Fachada implements ActionListener {
             case "Acerca de":
                 manejarAcercaDe();
                 break;
+            case "Mostrar Grafo":
+                manejarMostrarGrafo();
+            break;
+    
         }
     }
 
