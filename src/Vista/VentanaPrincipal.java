@@ -28,11 +28,12 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     private DefaultTableModel modeloTablaEstados;
     private JScrollPane scrollEstados;
     
-    // Components for Transitions Management
+    // Components for Transitions Management (UPDATED for Mealy Machine)
     private JPanel panelTransiciones;
     private JComboBox<String> cmbEstadoDesde;
     private JComboBox<String> cmbEstadoHasta;
     private JComboBox<String> cmbSimbolo;
+    private JTextField txtOutput; // NUEVO: Campo para el output
     private JButton btnAgregarTransicion;
     private JButton btnEliminarTransicion;
     private JTable tablaTransiciones;
@@ -48,10 +49,11 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     private DefaultListModel<String> modeloListaAlfabeto;
     private JScrollPane scrollAlfabeto;
     
-    // Components for String Testing
+    // Components for String Testing (UPDATED for Mealy output display)
     private JPanel panelPrueba;
     private JTextField txtCadenaPrueba;
     private JButton btnProbarCadena;
+    private JButton btnProbarCadenaConOutput; // NUEVO: Botón para probar con output
     private JTextArea txtResultado;
     private JScrollPane scrollResultado;
     
@@ -65,6 +67,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     private JMenuItem itemGuardar;
     private JMenuItem itemSalir;
     private JMenuItem itemValidarAutomata;
+    private JMenuItem itemTablaTransiciones; // NUEVO: Mostrar tabla de transiciones
     private JMenuItem itemLimpiarTodo;
     private JMenuItem itemAcercaDe;
 
@@ -75,7 +78,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         initComponents();
         initCustomComponents();
         setupLayout();
-        setTitle("Editor de Autómatas Finitos");
+        setTitle("Editor de Máquinas de Mealy");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
     }
@@ -114,11 +117,14 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         menuArchivo.add(itemSalir);
         
         // Automaton Menu
-        menuAutomata = new JMenu("Autómata");
-        itemValidarAutomata = new JMenuItem("Validar Autómata");
+        menuAutomata = new JMenu("Máquina de Mealy");
+        itemValidarAutomata = new JMenuItem("Validar Máquina");
+        itemTablaTransiciones = new JMenuItem("Mostrar Tabla de Transiciones");
         itemLimpiarTodo = new JMenuItem("Limpiar Todo");
         
         menuAutomata.add(itemValidarAutomata);
+        menuAutomata.add(itemTablaTransiciones);
+        menuAutomata.addSeparator();
         menuAutomata.add(itemLimpiarTodo);
         
         // Help Menu
@@ -184,7 +190,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     
     private void setupTransitionsPanel() {
         panelTransiciones = new JPanel();
-        panelTransiciones.setBorder(new TitledBorder("Gestión de Transiciones"));
+        panelTransiciones.setBorder(new TitledBorder("Gestión de Transiciones (Máquina de Mealy)"));
         panelTransiciones.setLayout(new BorderLayout());
         
         // Input panel
@@ -216,16 +222,24 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         cmbSimbolo.setPreferredSize(new Dimension(120, 25));
         inputPanel.add(cmbSimbolo, gbc);
         
+        // NUEVO: Campo para output
         gbc.gridx = 0; gbc.gridy = 3;
-        btnAgregarTransicion = new JButton("Agregar Transicion");
-        inputPanel.add(btnAgregarTransicion, gbc);
+        inputPanel.add(new JLabel("Output:"), gbc);
         
         gbc.gridx = 1; gbc.gridy = 3;
-        btnEliminarTransicion = new JButton("Eliminar Transicion");
+        txtOutput = new JTextField(15);
+        inputPanel.add(txtOutput, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 4;
+        btnAgregarTransicion = new JButton("Agregar Transición");
+        inputPanel.add(btnAgregarTransicion, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 4;
+        btnEliminarTransicion = new JButton("Eliminar Transición");
         inputPanel.add(btnEliminarTransicion, gbc);
         
-        // Table
-        String[] columnasTransiciones = {"Estado Desde", "Símbolo", "Estado Hasta"};
+        // Table (UPDATED: Include output column)
+        String[] columnasTransiciones = {"Estado Desde", "Símbolo", "Estado Hasta", "Output"};
         modeloTablaTransiciones = new DefaultTableModel(columnasTransiciones, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -234,7 +248,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         };
         tablaTransiciones = new JTable(modeloTablaTransiciones);
         scrollTransiciones = new JScrollPane(tablaTransiciones);
-        scrollTransiciones.setPreferredSize(new Dimension(300, 150));
+        scrollTransiciones.setPreferredSize(new Dimension(400, 150));
         
         panelTransiciones.add(inputPanel, BorderLayout.NORTH);
         panelTransiciones.add(scrollTransiciones, BorderLayout.CENTER);
@@ -242,7 +256,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     
     private void setupAlphabetPanel() {
         panelAlfabeto = new JPanel();
-        panelAlfabeto.setBorder(new TitledBorder("Alfabeto"));
+        panelAlfabeto.setBorder(new TitledBorder("Alfabeto de Entrada"));
         panelAlfabeto.setLayout(new BorderLayout());
         
         // Input panel
@@ -268,7 +282,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     
     private void setupTestingPanel() {
         panelPrueba = new JPanel();
-        panelPrueba.setBorder(new TitledBorder("Probar Cadenas"));
+        panelPrueba.setBorder(new TitledBorder("Probar Cadenas - Máquina de Mealy"));
         panelPrueba.setLayout(new BorderLayout());
         
         // Input panel
@@ -276,13 +290,16 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         inputPanel.add(new JLabel("Cadena a probar:"));
         txtCadenaPrueba = new JTextField(20);
         inputPanel.add(txtCadenaPrueba);
-        btnProbarCadena = new JButton("Probar");
+        btnProbarCadena = new JButton("Validar");
         inputPanel.add(btnProbarCadena);
+        btnProbarCadenaConOutput = new JButton("Procesar con Output");
+        inputPanel.add(btnProbarCadenaConOutput);
         
         // Result area
-        txtResultado = new JTextArea(5, 30);
+        txtResultado = new JTextArea(8, 40);
         txtResultado.setEditable(false);
         txtResultado.setBackground(getBackground());
+        txtResultado.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         scrollResultado = new JScrollPane(txtResultado);
         
         panelPrueba.add(inputPanel, BorderLayout.NORTH);
@@ -300,10 +317,11 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         
         // Top row: States and Transitions
         gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.5; gbc.weighty = 0.4;
+        gbc.weightx = 0.4; gbc.weighty = 0.4;
         mainPanel.add(panelEstados, gbc);
         
         gbc.gridx = 1; gbc.gridy = 0;
+        gbc.weightx = 0.6;
         mainPanel.add(panelTransiciones, gbc);
         
         // Bottom row: Alphabet and Testing
@@ -319,7 +337,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         
         // Status bar
         JPanel statusBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        statusBar.add(new JLabel("Listo"));
+        statusBar.add(new JLabel("Listo - Máquina de Mealy"));
         add(statusBar, BorderLayout.SOUTH);
     }
     
@@ -362,6 +380,11 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     
     public JComboBox<String> getCmbSimbolo() {
         return cmbSimbolo;
+    }
+    
+    // NUEVO: Getter para el campo de output
+    public JTextField getTxtOutput() {
+        return txtOutput;
     }
     
     public JButton getBtnAgregarTransicion() {
@@ -408,6 +431,11 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         return btnProbarCadena;
     }
     
+    // NUEVO: Getter para botón de procesamiento con output
+    public JButton getBtnProbarCadenaConOutput() {
+        return btnProbarCadenaConOutput;
+    }
+    
     public JTextArea getTxtResultado() {
         return txtResultado;
     }
@@ -430,6 +458,11 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     
     public JMenuItem getItemValidarAutomata() {
         return itemValidarAutomata;
+    }
+    
+    // NUEVO: Getter para mostrar tabla de transiciones
+    public JMenuItem getItemTablaTransiciones() {
+        return itemTablaTransiciones;
     }
     
     public JMenuItem getItemLimpiarTodo() {
@@ -473,11 +506,4 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    /**
-     * @param args the command line arguments
-     */
- 
-
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    // End of variables declaration//GEN-END:variables
 }
