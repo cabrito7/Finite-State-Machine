@@ -14,9 +14,9 @@ public class ControlTransicion {
         this.transiciones = new ArrayList<>();
     }
 
-    public void crearTransicion(String estadoDesde, String estadoHasta, String simbolo) {
-        Estado desde = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoDesde);
-        Estado hasta = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoHasta);
+    public void crearTransicion(Estado estadoDesde, Estado estadoHasta, String simbolo) {
+        Estado desde = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoDesde.getNombre());
+        Estado hasta = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoHasta.getNombre());
         
         if (desde == null || hasta == null) {
             this.cPrincipal.getFachada().getvPrincipal().mostrarMensajeError("Uno o ambos estados no existen.");
@@ -38,9 +38,9 @@ public class ControlTransicion {
         this.cPrincipal.getFachada().getvPrincipal().mostrarMensaje("Transición creada.");
     }
 
-    public void eliminarTransicion(String estadoDesde, String estadoHasta, String simbolo) {
-        Estado desde = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoDesde);
-        Estado hasta = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoHasta);
+    public void eliminarTransicion(Estado estadoDesde, Estado estadoHasta, String simbolo) {
+        Estado desde = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoDesde.getNombre());
+        Estado hasta = this.cPrincipal.getcEstado().buscarEstadoPorNombre(estadoHasta.getNombre());
         
         if (desde == null || hasta == null) {
             this.cPrincipal.getFachada().getvPrincipal().mostrarMensajeError("Uno o ambos estados no existen.");
