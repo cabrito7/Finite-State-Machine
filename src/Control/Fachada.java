@@ -11,6 +11,7 @@ import javax.swing.JTextArea;
 
 /**
  * Fachada que maneja la comunicación entre la vista y los controladores
+ * Actualizada para Máquina de Mealy con gestión completa de outputs
  * @author carlosmamut1
  */
 public class Fachada implements ActionListener {
@@ -35,13 +36,16 @@ public class Fachada implements ActionListener {
         this.vPrincipal.getBtnAgregarSimbolo().addActionListener(this);
         this.vPrincipal.getBtnEliminarSimbolo().addActionListener(this);
 
-        // Prueba events
+        // Prueba events - ACTUALIZADO para Máquina de Mealy
         this.vPrincipal.getBtnProbarCadena().addActionListener(this);
+        this.vPrincipal.getBtnProbarCadenaConOutput().addActionListener(this);
 
         // Menú events
         this.vPrincipal.getItemNuevo().addActionListener(this);
         this.vPrincipal.getItemValidarAutomata().addActionListener(this);
+        this.vPrincipal.getItemTablaTransiciones().addActionListener(this);
         this.vPrincipal.getItemLimpiarTodo().addActionListener(this);
+        this.vPrincipal.getItemAcercaDe().addActionListener(this);
     }
 
     public VentanaPrincipal getvPrincipal() {
@@ -61,11 +65,11 @@ public class Fachada implements ActionListener {
                 manejarEliminarEstado();
                 break;
                 
-            case "Agregar Transicion":
+            case "Agregar Transición":
                 manejarAgregarTransicion();
                 break;
                 
-            case "Eliminar Transicion":
+            case "Eliminar Transición":
                 manejarEliminarTransicion();
                 break;
                 
@@ -77,20 +81,32 @@ public class Fachada implements ActionListener {
                 manejarEliminarSimbolo();
                 break;
                 
-            case "Probar":
-                manejarProbarCadena();
+            case "Validar":
+                manejarValidarCadena();
+                break;
+                
+            case "Procesar con Output":
+                manejarProbarCadenaConOutput();
                 break;
                 
             case "Nuevo":
                 manejarNuevoAutomata();
                 break;
                 
-            case "Validar Autómata":
+            case "Validar Máquina":
                 manejarValidarAutomata();
+                break;
+                
+            case "Mostrar Tabla de Transiciones":
+                manejarMostrarTablaTransiciones();
                 break;
                 
             case "Limpiar Todo":
                 manejarLimpiarTodo();
+                break;
+                
+            case "Acerca de":
+                manejarAcercaDe();
                 break;
         }
     }
@@ -130,26 +146,16 @@ public class Fachada implements ActionListener {
         String desde = (String) vPrincipal.getCmbEstadoDesde().getSelectedItem();
         String hasta = (String) vPrincipal.getCmbEstadoHasta().getSelectedItem();
         String simbolo = (String) vPrincipal.getCmbSimbolo().getSelectedItem();
+        String output = vPrincipal.getTxtOutput().getText().trim();
 
         if (desde == null || hasta == null || simbolo == null) {
             vPrincipal.mostrarMensajeError("Debe seleccionar un estado de origen, un estado de destino y un símbolo.");
             return;
         }
 
-        // Para máquina de Mealy, pedir el output
-        String output = javax.swing.JOptionPane.showInputDialog(
-            vPrincipal, 
-            "Ingrese el output para esta transición:", 
-            "Output de Transición", 
-            javax.swing.JOptionPane.QUESTION_MESSAGE
-        );
-
-        if (output == null) {
-            return; // Usuario canceló
-        }
-
-        if (output.trim().isEmpty()) {
-            output = "λ"; // Output vacío
+        // Si no se especifica output, usar lambda (cadena vacía)
+        if (output.isEmpty()) {
+            output = "λ";
         }
 
         Estado estadoDesde = cPrincipal.getcEstado().buscarEstadoPorNombre(desde);
@@ -160,8 +166,15 @@ public class Fachada implements ActionListener {
             return;
         }
 
-        cPrincipal.getcTransicion().crearTransicion(estadoDesde, estadoHasta, simbolo, output.trim());
+        cPrincipal.getcTransicion().crearTransicion(estadoDesde, estadoHasta, simbolo, output);
+        
+        // Agregar output al alfabeto de salida automáticamente
+        cPrincipal.agregarSimboloAlfabetoSalida(output);
+        
         actualizarTablaTransiciones();
+        
+        // Limpiar campo de output después de agregar
+        vPrincipal.getTxtOutput().setText("");
     }
 
     private void manejarEliminarTransicion() {
@@ -173,7 +186,17 @@ public class Fachada implements ActionListener {
 
         String desde = (String) vPrincipal.getModeloTablaTransiciones().getValueAt(filaSeleccionada, 0);
         String simbolo = (String) vPrincipal.getModeloTablaTransiciones().getValueAt(filaSeleccionada, 1);
-        String hasta = (String) vPrincipal.getModeloTablaTransiciones().getValueAt(filaSeleccionada, 2);
+        String hastaConOutput = (String) vPrincipal.getModeloTablaTransiciones().getValueAt(filaSeleccionada, 2);
+        
+        // Separar estado hasta y output (formato: "Estado/Output")
+        String[] partes = hastaConOutput.split("/");
+        if (partes.length != 2) {
+            vPrincipal.mostrarMensajeError("Error al procesar la transición seleccionada.");
+            return;
+        }
+        
+        String hasta = partes[0];
+        String output = partes[1];
 
         Estado estadoDesde = cPrincipal.getcEstado().buscarEstadoPorNombre(desde);
         Estado estadoHasta = cPrincipal.getcEstado().buscarEstadoPorNombre(hasta);
@@ -183,7 +206,7 @@ public class Fachada implements ActionListener {
             return;
         }
 
-        cPrincipal.getcTransicion().eliminarTransicion(estadoDesde, estadoHasta, simbolo);
+        cPrincipal.getcTransicion().eliminarTransicion(estadoDesde, estadoHasta, simbolo, output);
         actualizarTablaTransiciones();
     }
 
@@ -221,6 +244,20 @@ public class Fachada implements ActionListener {
             return;
         }
 
+        // Verificar si el símbolo está siendo usado en transiciones
+        boolean enUso = false;
+        for (Transicion t : cPrincipal.getcTransicion().getTransiciones()) {
+            if (t.getSimbolo().equals(simboloSeleccionado)) {
+                enUso = true;
+                break;
+            }
+        }
+        
+        if (enUso) {
+            vPrincipal.mostrarMensajeError("No se puede eliminar el símbolo. Está siendo usado en transiciones.");
+            return;
+        }
+
         cPrincipal.eliminarSimboloAlfabeto(simboloSeleccionado);
         vPrincipal.getModeloListaAlfabeto().removeElement(simboloSeleccionado);
         vPrincipal.getCmbSimbolo().removeItem(simboloSeleccionado);
@@ -228,11 +265,44 @@ public class Fachada implements ActionListener {
         vPrincipal.mostrarMensaje("Símbolo eliminado del alfabeto.");
     }
 
-    private void manejarProbarCadena() {
+    private void manejarValidarCadena() {
         String cadena = vPrincipal.getTxtCadenaPrueba().getText().trim();
 
         if (cadena.isEmpty()) {
-            vPrincipal.mostrarMensajeError("Ingrese una cadena para probar.");
+            vPrincipal.mostrarMensajeError("Ingrese una cadena para validar.");
+            return;
+        }
+
+        // Validar que todos los símbolos existan en el alfabeto
+        ArrayList<String> alfabeto = cPrincipal.getAlfabeto();
+        for (char c : cadena.toCharArray()) {
+            String s = String.valueOf(c);
+            if (!alfabeto.contains(s)) {
+                vPrincipal.mostrarMensajeError("El símbolo '" + s + "' no pertenece al alfabeto.");
+                return;
+            }
+        }
+
+        // Usar el método tradicional de validación (solo aceptación/rechazo)
+        boolean aceptada = cPrincipal.procesarCadena(cadena);
+        
+        JTextArea txtResultado = vPrincipal.getTxtResultado();
+        if (aceptada) {
+            txtResultado.setText("✔ CADENA ACEPTADA\n" +
+                               "Cadena: " + cadena + "\n" +
+                               "La cadena fue procesada exitosamente y terminó en un estado final.");
+        } else {
+            txtResultado.setText("✘ CADENA RECHAZADA\n" +
+                               "Cadena: " + cadena + "\n" +
+                               "La cadena fue rechazada (ver consola para detalles).");
+        }
+    }
+
+    private void manejarProbarCadenaConOutput() {
+        String cadena = vPrincipal.getTxtCadenaPrueba().getText().trim();
+
+        if (cadena.isEmpty()) {
+            vPrincipal.mostrarMensajeError("Ingrese una cadena para procesar.");
             return;
         }
 
@@ -253,19 +323,25 @@ public class Fachada implements ActionListener {
         JTextArea txtResultado = vPrincipal.getTxtResultado();
         
         if (resultado != null) {
-            txtResultado.setText("✔ Cadena procesada exitosamente.\n" +
+            txtResultado.setText("=== PROCESAMIENTO MÁQUINA DE MEALY ===\n" +
+                               "✔ Cadena procesada exitosamente\n\n" +
                                "Cadena de entrada: " + cadena + "\n" +
-                               "Cadena de salida: " + resultado);
+                               "Cadena de salida:  " + resultado + "\n\n" +
+                               "Ver ventana de mensajes para la traza completa de ejecución.");
         } else {
-            txtResultado.setText("✘ Error al procesar la cadena.");
+            txtResultado.setText("=== PROCESAMIENTO MÁQUINA DE MEALY ===\n" +
+                               "✘ Error al procesar la cadena\n\n" +
+                               "Cadena de entrada: " + cadena + "\n" +
+                               "La cadena no pudo ser procesada completamente.\n" +
+                               "Ver ventana de mensajes para detalles del error.");
         }
     }
 
     private void manejarNuevoAutomata() {
         int respuesta = javax.swing.JOptionPane.showConfirmDialog(
             vPrincipal,
-            "¿Está seguro de que desea crear un nuevo autómata? Se perderán todos los datos actuales.",
-            "Nuevo Autómata",
+            "¿Está seguro de que desea crear una nueva máquina? Se perderán todos los datos actuales.",
+            "Nueva Máquina de Mealy",
             javax.swing.JOptionPane.YES_NO_OPTION
         );
 
@@ -279,16 +355,33 @@ public class Fachada implements ActionListener {
         boolean esValido = cPrincipal.validarAutomata();
         if (esValido) {
             String info = cPrincipal.getInformacionAutomata();
-            String tabla = cPrincipal.generarTablaTransicionesMealy();
-            vPrincipal.mostrarMensaje(info + "\n" + tabla);
+            vPrincipal.mostrarMensaje("MÁQUINA DE MEALY VÁLIDA\n\n" + info);
         }
+    }
+
+    private void manejarMostrarTablaTransiciones() {
+        String tabla = cPrincipal.generarTablaTransicionesMealy();
+        
+        // Crear una ventana de diálogo para mostrar la tabla
+        javax.swing.JDialog dialogoTabla = new javax.swing.JDialog(vPrincipal, "Tabla de Transiciones - Máquina de Mealy", true);
+        javax.swing.JTextArea areaTabla = new javax.swing.JTextArea(tabla);
+        areaTabla.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
+        areaTabla.setEditable(false);
+        
+        javax.swing.JScrollPane scrollTabla = new javax.swing.JScrollPane(areaTabla);
+        scrollTabla.setPreferredSize(new java.awt.Dimension(600, 400));
+        
+        dialogoTabla.add(scrollTabla);
+        dialogoTabla.pack();
+        dialogoTabla.setLocationRelativeTo(vPrincipal);
+        dialogoTabla.setVisible(true);
     }
 
     private void manejarLimpiarTodo() {
         int respuesta = javax.swing.JOptionPane.showConfirmDialog(
             vPrincipal,
             "¿Está seguro de que desea limpiar todo? Se perderán todos los datos.",
-            "Limpiar Todo",
+            "Limpiar Máquina de Mealy",
             javax.swing.JOptionPane.YES_NO_OPTION
         );
 
@@ -296,6 +389,22 @@ public class Fachada implements ActionListener {
             cPrincipal.limpiarAutomata();
             actualizarTodosLosComponentes();
         }
+    }
+
+    private void manejarAcercaDe() {
+        String mensaje = "EDITOR DE MÁQUINAS DE MEALY\n\n" +
+                        "Versión: 2.0\n" +
+                        "Autor: Sistema de Gestión de Autómatas\n\n" +
+                        "Características principales:\n" +
+                        "• Creación y edición de estados\n" +
+                        "• Gestión de transiciones con outputs\n" +
+                        "• Validación de máquinas de Mealy\n" +
+                        "• Procesamiento de cadenas con salida\n" +
+                        "• Generación de tablas de transiciones\n\n" +
+                        "Una máquina de Mealy es un autómata finito que\n" +
+                        "produce una salida para cada transición de estado.";
+        
+        vPrincipal.mostrarMensaje(mensaje);
     }
 
     // Métodos auxiliares para actualizar la interfaz
@@ -356,6 +465,7 @@ public class Fachada implements ActionListener {
         // Limpiar campos de texto
         limpiarCamposEstado();
         vPrincipal.getTxtSimbolo().setText("");
+        vPrincipal.getTxtOutput().setText("");
         vPrincipal.getTxtCadenaPrueba().setText("");
         vPrincipal.getTxtResultado().setText("");
     }
