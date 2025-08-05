@@ -167,7 +167,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         gbc.gridx = 1; gbc.gridy = 1;
         chkEstadoFinal = new JCheckBox("Estado Final");
         inputPanel.add(chkEstadoFinal, gbc);
-        
+        chkEstadoFinal.setSelected(true);
         gbc.gridx = 0; gbc.gridy = 2;
         btnAgregarEstado = new JButton("Agregar Estado");
         inputPanel.add(btnAgregarEstado, gbc);
